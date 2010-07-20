@@ -10,10 +10,11 @@ touch "$config"
 
 # shows the usage message
 usage() {
-    echo "usage: redlite ( -s | -q | -o ) [-v]"
+    echo "usage: redlite ( -s | -q | -o | -c ) [-v]"
     echo "  -s :  scan for updates"
     echo "  -q :  query for updates"
-    echo "  -o :  mark all updates as old"
+    echo "  -o :  open all updates"
+    echo "  -c :  clear all updates"
     echo "  -v :  be verbose (must come last)"
     echo
     echo "config file: $config"
@@ -79,8 +80,16 @@ query () {
     done
 }
 
+# opens all the diff files available
+open () {
+    for diff in "$cache"/*.diff.html
+    do
+        [ -e "$diff" ] && eval "$BROWSER file://$diff#first-diff"
+    done
+}
+
 # removes all the diff files and marks all files as unchanged
-old() {
+clear() {
     for diff in "$cache"/*.diff.html
     do
         file=`echo "$diff" | sed 's/\.diff\.html$//'`
@@ -93,7 +102,8 @@ old() {
 case "$1" in
     (-s) scan  ;;
     (-q) query ;;
-    (-o) old   ;;
+    (-o) open  ;;
+    (-c) clear ;;
     (*)  usage ;;
 esac
 
