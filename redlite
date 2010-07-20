@@ -1,0 +1,81 @@
+#!/bin/sh
+
+config=$XDG_CONFIG_HOME/redlite/urls
+Gache=$XDG_CACHE_HOME/redlite
+
+# ensure stuff exists
+mkdir -p "$cache"
+touch "$config" "$store"
+
+usage() {
+    echo "usage: redlite ( -s | -q | -o )"
+    echo "  -s :  scan for updates"
+    echo "  -q :  query for updates"
+    echo "  -o :  mark all updates as old"
+    echo
+    echo "config file: $config"
+    echo "cache directory: $cache"
+}
+
+scan() {
+    # remove comments
+    urls=`grep -v "^#" "$config"`
+
+    IFS='
+'
+    for params in $urls
+    do
+        url=`echo $params | awk -F '\t' '{print $1}'`
+        clean_url=`echo "$url" | sed 's/[^a-zA-Z0-9_.-]/_/g'`
+        file="$cache/$clean_url"
+        diff="$file.diff.html"
+
+        echo "update-scanner: scanning $params"
+        sh -c "wget -q --user-agent=Firefox -O - $params > '$file.new'"
+        if [ "$?" != "0" ]
+        then
+            echo "update-scanner: wget error!"
+            continue
+        fi
+
+        # don't alert on first time get
+        if [ ! -f "$file" ]
+        then
+            mv "$file.new" "$file"
+            continue
+        fi
+
+        # otherwise: see if things changed
+        if ! diff -q -w "$file" "$file.new" > /dev/null
+        then
+            dir=`dirname $0`
+            $dir/html-diff.py "$file" "$file.new" | sed 's/<head>/\\n<head>\\n/' | sed '/<head>/ a\\
+            <head><base href="$url"/><style type="text/css"><!--ins {background: #bfb} del{background: #fcc} ins,del {text-decoration: none} --></style>' |
+            sed '1,/class="diff/s/class="diff/id="first-diff" \\0/' > "$diff"
+        fi
+    done
+}
+
+query () {
+    for diff in "$cache"/*.diff.html
+    do
+        echo "$diff"
+    done
+}
+
+old() {
+    for diff in "$cache"/*.diff.html
+    do
+        file=`echo "$diff" | sed 's/\.diff\.html$//'`
+        mv "$file.new" "$file"
+        rm "$diff"
+    done
+}
+
+case "$1" in
+    (-s) scan ;;
+    (-q) query ;;
+    (-o) old ;;
+    (*) usage ;;
+esac
+
