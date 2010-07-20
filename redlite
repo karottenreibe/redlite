@@ -1,25 +1,31 @@
 #!/bin/sh
 
 config=$XDG_CONFIG_HOME/redlite/urls
-Gache=$XDG_CACHE_HOME/redlite
+cache=$XDG_CACHE_HOME/redlite
 
 # ensure stuff exists
 mkdir -p "$cache"
-touch "$config" "$store"
+mkdir -p `dirname "$config"`
+touch "$config"
 
+# shows the usage message
 usage() {
-    echo "usage: redlite ( -s | -q | -o )"
+    echo "usage: redlite ( -s | -q | -o ) [-v]"
     echo "  -s :  scan for updates"
     echo "  -q :  query for updates"
     echo "  -o :  mark all updates as old"
+    echo "  -v :  be verbose (must come last)"
     echo
     echo "config file: $config"
     echo "cache directory: $cache"
 }
 
+# scans for changes
+# exits with non-zero status if something changed
 scan() {
     # remove comments
     urls=`grep -v "^#" "$config"`
+    changed=""
 
     IFS='
 '
@@ -30,17 +36,19 @@ scan() {
         file="$cache/$clean_url"
         diff="$file.diff.html"
 
-        echo "update-scanner: scanning $params"
+        [ -n "$verbose" ] && echo "scanning $params"
+
         sh -c "wget -q --user-agent=Firefox -O - $params > '$file.new'"
         if [ "$?" != "0" ]
         then
-            echo "update-scanner: wget error!"
+            [ -n "$verbose" ] && echo "wget error!"
             continue
         fi
 
         # don't alert on first time get
         if [ ! -f "$file" ]
         then
+            [ -n "$verbose" ] && echo "first time scan!"
             mv "$file.new" "$file"
             continue
         fi
@@ -48,21 +56,30 @@ scan() {
         # otherwise: see if things changed
         if ! diff -q -w "$file" "$file.new" > /dev/null
         then
+            [ -n "$verbose" ] && echo "$url changed!"
+            changed="true"
             dir=`dirname $0`
-            $dir/html-diff.py "$file" "$file.new" | sed 's/<head>/\\n<head>\\n/' | sed '/<head>/ a\\
-            <head><base href="$url"/><style type="text/css"><!--ins {background: #bfb} del{background: #fcc} ins,del {text-decoration: none} --></style>' |
-            sed '1,/class="diff/s/class="diff/id="first-diff" \\0/' > "$diff"
+            $dir/html-diff.py "$file" "$file.new" |
+                sed 's/<head>/\n<head>\n/' |
+                sed '/<head>/ a\
+<head><base href="'"$url"'"/><style type="text/css"><!--ins {background: #bfb} del{background: #fcc} ins,del {text-decoration: none} --></style>' |
+                sed '1,/class="diff/s/class="diff/id="first-diff" &/' > "$diff"
         fi
     done
+
+    [ -z "$changed" ] && exit 0
+    [ -n "$changed" ] && exit 1
 }
 
+# lists all the diff files available on stdout
 query () {
     for diff in "$cache"/*.diff.html
     do
-        echo "$diff"
+        [ -e "$diff" ] && echo "$diff"
     done
 }
 
+# removes all the diff files and marks all files as unchanged
 old() {
     for diff in "$cache"/*.diff.html
     do
@@ -72,10 +89,11 @@ old() {
     done
 }
 
+[ "$2" == "-v" ] && verbose="true"
 case "$1" in
-    (-s) scan ;;
+    (-s) scan  ;;
     (-q) query ;;
-    (-o) old ;;
-    (*) usage ;;
+    (-o) old   ;;
+    (*)  usage ;;
 esac
 
