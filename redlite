@@ -1,7 +1,7 @@
 #!/bin/sh
 
-config=$XDG_CONFIG_HOME/redlite/urls
-cache=$XDG_CACHE_HOME/redlite
+config=${XDG_CONFIG_HOME:-$HOME/.config}/redlite/urls
+cache=${XDG_CACHE_HOME:-$HOME/.cache}/redlite
 
 # ensure stuff exists
 mkdir -p "$cache"
