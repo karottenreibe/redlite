@@ -41,7 +41,7 @@ scan() {
 
         [ -n "$verbose" ] && echo "wget -q --user-agent=Firefox -O - $params > '$file.new'"
         sh -c "wget -q --user-agent=Firefox -O - $params > '$file.new'"
-        if [ "$?" != "0" ]
+        if [ "$?" != "0" ] || grep -q "[^ ]" "$file.new"
         then
             [ -n "$verbose" ] && echo "wget error! Ignoring this URI."
             continue
