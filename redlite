@@ -64,7 +64,7 @@ scan() {
             $dir/html-diff.py "$file" "$file.new" |
                 sed 's/<head>/\n<head>\n/' |
                 sed '/<head>/ a\
-<head><base href="'"$url"'"/><style type="text/css"><!--ins {background: #bfb} del{background: #fcc} ins,del {text-decoration: none} --></style>' |
+<head><base href="'"$url"'"/><style type="text/css"><!--ins {background: #bfb !important} del{background: #fcc !important} ins,del {text-decoration: none !important} --></style>' |
                 sed '1,/class="diff/s/class="diff/id="first-diff" &/' > "$diff"
         fi
     done
